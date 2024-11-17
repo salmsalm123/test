@@ -1,5 +1,5 @@
 -- Funky Friday
-
+-- bad source by xyzz
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local gamename = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
