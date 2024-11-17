@@ -69,12 +69,12 @@ Toggle:OnChanged(function()
                         if child.Position.Y.Scale < (0 + 1e-9) + _G.Delay and child.Name == "Frame" then
                             frameDetected = true
                             coroutine.wrap(function()
-                                VirtualInputManager:SendKeyEvent(true, keyCode, false, nil)
+                                VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
                                 
                                 while child.Parent do
                                     task.wait()
                                 end
-                                VirtualInputManager:SendKeyEvent(false, keyCode, false, nil)
+                                VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
                             end)()
                             break
                         end
@@ -84,12 +84,12 @@ Toggle:OnChanged(function()
                         for _, child in pairs(children) do
                             if child.Position.Y.Scale < 0 + _G.Delay and child.Name == "Note" then
                                 coroutine.wrap(function()
-                                    VirtualInputManager:SendKeyEvent(true, keyCode, false, nil)
+                                    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
                                     
                                     while child.Parent do
                                         task.wait()
                                     end
-                                    VirtualInputManager:SendKeyEvent(false, keyCode, false, nil)
+                                    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
                                 end)()
                                 break
                             end
@@ -117,7 +117,36 @@ end)
 Toggle:SetValue(false)
 
 
-local Section = Tabs.Main:AddSection("Adjustments")
+game.GuiService.MenuOpened:Connect(function()
+    if Toggle.Value then
+        _G.Toggled = true
+        Toggle:SetValue(false)
+    end
+end)
+
+game.GuiService.MenuClosed:Connect(function()
+    if not Toggle.Value and _G.Toggled then
+        _G.Toggled = false
+        Toggle:SetValue(true)
+    end
+end)
+
+local Keybind = Tabs.Main:AddKeybind("Keybind", {
+    Title = "Auto Player Keybind",
+    Mode = "Toggle",
+    Default = "Insert",
+
+    Callback = function(Value)
+        if Toggle.Value then
+            Toggle:SetValue(false)
+        else
+            Toggle:SetValue(true)
+        end
+    end,
+})
+
+
+Tabs.Main:AddSection("Adjustments")
 
 local Dropdown = Tabs.Main:AddDropdown("Dropdown", {
     Title = "Delay Mode",
@@ -129,12 +158,14 @@ local Dropdown = Tabs.Main:AddDropdown("Dropdown", {
     end
 })
 
+_G.Mode = "Static"
+
 local Slider = Tabs.Main:AddSlider("Slider", {
     Title = "Note ms Delay",
     Description = "More = Earlier",
     Default = 0,
     Min = 0,
-    Max = 0.025,
+    Max = 0.03,
     Rounding = 3,
     Callback = function(Value)
         pcall(function()
@@ -147,20 +178,22 @@ local Slider = Tabs.Main:AddSlider("Slider", {
                     _G.Delay = Value
                 end
             else
-                _G.Delay = math.random(0, Value)
-                local player = game.Players.LocalPlayer
+                task.spawn(function()
+                    while true do
+                        _G.Delay = math.floor(math.random() * Value * 1000) / 1000
+                        task.wait()
+                    end
+                end)
+                
+                local player = game:GetService("Players").LocalPlayer
                 if player.PlayerGui.GameUI.Windows.Settings.Frame.Body.Settings.Settings.ScrollingFrame.DownScroll.Toggle.Outer.Inner.ImageColor3 == {118, 255, 105} then
                     _G.Delay = _G.Delay - _G.Delay - _G.Delay
                 else
-                    _G.Delay = math.random(0, Value)
+                    _G.Delay = math.floor(math.random() * Value * 1000) / 1000
                 end
             end
         end)
     end
-})
-
-Tabs.Main:AddParagraph({
-    Title = "Static = Static Delay \nRandom = Random Delay"
 })
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
@@ -171,26 +204,22 @@ local Timer = Tabs.Updates:AddParagraph({
     Title = "Time: 00:00:00",
 })
 
-local startTime = os.time()
+local st = os.time()
 
 local function updateTimer()
     while true do
-        local elapsedTime = os.difftime(os.time(), startTime)
-        local hours = math.floor(elapsedTime / 3600)
-        local minutes = math.floor((elapsedTime % 3600) / 60)
-        local seconds = elapsedTime % 60
-        local formattedTime = string.format("Time: %02d:%02d:%02d", hours, minutes, seconds)
+        local et = os.difftime(os.time(), st)
+        local h = math.floor(et / 3600)
+        local m = math.floor((et % 3600) / 60)
+        local s = et % 60
+        local ft = string.format("Time: %02d:%02d:%02d", h, m, s)
 
-        Timer:SetTitle(formattedTime)
+        Timer:SetTitle(ft)
         task.wait(1)
     end
 end
 
 coroutine.wrap(updateTimer)()
-
-Tabs.Updates:AddParagraph({
-    Title = "Status: Free",
-})
 
 Tabs.Updates:AddButton({
     Title = "Discord Server",
@@ -208,32 +237,21 @@ Tabs.Updates:AddButton({
     end
 })
 
-local groupId = 11980804
-
-local existingGui = game.CoreGui:FindFirstChild("Uni")
-if existingGui then
-    existingGui:Destroy()
+local player = game:GetService("Players").LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+if backpack:FindFirstChild("Ui") then
+    backpack:FindFirstChild("Ui"):Destroy()
 end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "Uni"
-gui.Parent = game.CoreGui
+local tool = Instance.new("Tool")
+tool.Name = "Ui"
+tool.RequiresHandle = false
+tool.TextureId = "rbxassetid://135519282079256"
+tool.Parent = backpack
 
-local ImageButton = Instance.new("ImageButton")
-ImageButton.Name = "ToggleUiXBX"
-local iconId = game:GetService("GroupService"):GetGroupInfoAsync(groupId).EmblemUrl
-ImageButton.Image = iconId
-ImageButton.BackgroundTransparency = 1
-ImageButton.Size = UDim2.new(0, 50, 0, 50)
-ImageButton.Position = UDim2.new(0, 510, 0, 40)
-ImageButton.Parent = gui
-
-ImageButton.Draggable = true
-
-local isOpen = true
-ImageButton.MouseButton1Click:Connect(function()
-    isOpen = not isOpen
-    if isOpen then
+Open = true
+tool.Activated:Connect(function()
+    if Open then
         Window:Minimize()
     else
         Window:Minimize()
@@ -245,8 +263,6 @@ game:GetService('Players').LocalPlayer.Idled:connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
-
-loadstring(game:HttpGet('https://raw.githubusercontent.com/salmsalm123/web/main/obfuscated'))()
 
 local player = game:GetService("Players").LocalPlayer
 
